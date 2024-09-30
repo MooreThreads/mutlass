@@ -1,6 +1,6 @@
 ---
 name: Documentation request
-about: Report incorrect or needed documentation to improve CUTLASS
+about: Report incorrect or needed documentation to improve MUTLASS
 title: "[DOC]"
 labels: "? - Needs Triage, documentation"
 assignees: ''
