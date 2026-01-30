@@ -118,10 +118,9 @@ struct Tensor
   MUTE_HOST_DEVICE constexpr
   Tensor() {}
 
-  template <class Ptr>
   MUTE_HOST_DEVICE constexpr
-  Tensor(Ptr const& ptr, Layout const& layout)
-      : rep_(layout, ptr) {
+  Tensor(Engine const& engine, Layout const& layout)
+      : rep_(layout, engine) {
   }
 
   //
@@ -134,12 +133,6 @@ struct Tensor
   decltype(auto)
   tensor() const {
     return *this;
-  }
-
-  MUTE_HOST_DEVICE constexpr
-  decltype(auto)
-  layout() const {
-    return get<0>(rep_);
   }
 
   MUTE_HOST_DEVICE constexpr
@@ -164,6 +157,12 @@ struct Tensor
   decltype(auto)
   data() {
     return engine().begin();
+  }
+
+  MUTE_HOST_DEVICE constexpr
+  decltype(auto)
+  layout() const {
+    return get<0>(rep_);
   }
 
   MUTE_HOST_DEVICE constexpr
@@ -208,7 +207,7 @@ struct Tensor
   decltype(auto)
   operator()(Coord const& coord) {
     if constexpr (has_underscore<Coord>::value) {
-      auto const& [sliced_layout,offset] = slice_and_offset(coord, layout());
+      auto [sliced_layout,offset] = slice_and_offset(coord, layout());
       return make_tensor(data() + offset, sliced_layout);
     } else {
       return data()[layout()(coord)];
@@ -222,7 +221,7 @@ struct Tensor
   decltype(auto)
   operator()(Coord const& coord) const {
     if constexpr (has_underscore<Coord>::value) {
-      auto const& [sliced_layout,offset] = slice_and_offset(coord, layout());
+      auto [sliced_layout,offset] = slice_and_offset(coord, layout());
       return make_tensor(data() + offset, sliced_layout);
     } else {
       return data()[layout()(coord)];
@@ -324,41 +323,38 @@ constexpr bool is_tensor_v = is_tensor<T>::value;
 template <class T>
 struct MakeTensor
 {
-  template <class Layout,
-            __MUTE_REQUIRES(not has_dereference<T>::value &&
-                            is_layout<Layout>::value)>
+  template <class Arg0, class... Args>
   MUTE_HOST_DEVICE constexpr auto
-  operator()(Layout const& layout) const
+  operator()(Arg0 const& arg0, Args const&... args) const
   {
-    static_assert(is_static<Layout>::value, "Dynamic owning tensors not supported");
-    using Engine = ArrayEngine<T, cosize_v<Layout>>;
-    return Tensor<Engine,Layout>();
-  }
+    if constexpr (has_dereference<Arg0>::value) {
+      // Construct a non-owning Tensor
+      using Engine = ViewEngine<Arg0>;
+      if constexpr (sizeof...(Args) == 1 && (is_layout<Args>::value && ...)) {
+        // Forward a Layout
+        return Tensor{Engine{arg0}, args...};
+      } else {
+        // Construct a Layout from Args
+        return Tensor{Engine{arg0}, make_layout(args...)};
+      }
+    } else {
+      // Construct an owning Tensor
+      static_assert((is_static<Arg0>::value && ... && is_static<Args>::value),
+                    "Dynamic owning tensors not supported");
+      if constexpr (sizeof...(Args) == 0 && is_layout<Arg0>::value) {
+        // Forward a Layout
+        using Layout = Arg0;
+        using Engine = ArrayEngine<T, cosize_v<Layout>>;
+        return Tensor<Engine,Layout>();
+      } else {
+        // Construct a Layout from Args
+        using Layout = decltype(make_layout(arg0, args...));
+        using Engine = ArrayEngine<T, cosize_v<Layout>>;
+        return Tensor<Engine,Layout>();
+      }
+    }
 
-  template <class Layout,
-            __MUTE_REQUIRES(has_dereference<T>::value &&
-                            is_layout<Layout>::value)>
-  MUTE_HOST_DEVICE constexpr auto
-  operator()(T const& iter, Layout const& layout)
-  {
-    using Engine = ViewEngine<T>;
-    return Tensor<Engine,Layout>(iter, layout);
-  }
-
-  template <class LayoutArg, class... LayoutArgs,
-            __MUTE_REQUIRES(not is_layout<LayoutArg>::value)>
-  MUTE_HOST_DEVICE constexpr auto
-  operator()(LayoutArg const& arg, LayoutArgs const&... args) const
-  {
-    return operator()(make_layout(arg, args...));
-  }
-
-  template <class LayoutArg, class... LayoutArgs,
-            __MUTE_REQUIRES(not is_layout<LayoutArg>::value)>
-  MUTE_HOST_DEVICE constexpr auto
-  operator()(T const& iter, LayoutArg const& arg, LayoutArgs const&... args)
-  {
-    return operator()(iter, make_layout(arg, args...));
+    MUTE_GCC_UNREACHABLE;
   }
 };
 
@@ -373,6 +369,7 @@ MUTE_HOST_DEVICE constexpr
 auto
 make_tensor(Args const&... args)
 {
+  static_assert((not has_dereference<Args>::value && ...), "Expected layout args... in make_tensor<T>(args...)");
   return MakeTensor<T>{}(args...);
 }
 
@@ -383,6 +380,8 @@ MUTE_HOST_DEVICE constexpr
 auto
 make_tensor(Iterator const& iter, Args const&... args)
 {
+  static_assert(has_dereference<Iterator>::value, "Expected iterator iter in make_tensor(iter, args...)");
+  static_assert((not has_dereference<Args>::value && ...), "Expected layout args... in make_tensor(iter, args...)");
   return MakeTensor<Iterator>{}(iter, args...);
 }
 

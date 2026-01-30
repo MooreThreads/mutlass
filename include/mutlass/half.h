@@ -588,30 +588,39 @@ struct numeric_limits<mutlass::half_t> {
   static int const digits = 10;
 
   /// Least positive value
+  MUTLASS_HOST_DEVICE
   static mutlass::half_t min() { return mutlass::half_t::bitcast(0x0001); }
 
   /// Minimum finite value
+  MUTLASS_HOST_DEVICE
   static mutlass::half_t lowest() { return mutlass::half_t::bitcast(0xfbff); }
 
   /// Maximum finite value
+  MUTLASS_HOST_DEVICE
   static mutlass::half_t max() { return mutlass::half_t::bitcast(0x7bff); }
 
   /// Returns smallest finite value
+  MUTLASS_HOST_DEVICE
   static mutlass::half_t epsilon() { return mutlass::half_t::bitcast(0x1800); }
 
   /// Returns maximum rounding error
+  MUTLASS_HOST_DEVICE
   static mutlass::half_t round_error() { return mutlass::half_t(0.5f); }
 
   /// Returns positive infinity value
+  MUTLASS_HOST_DEVICE
   static mutlass::half_t infinity() { return mutlass::half_t::bitcast(0x7c00); }
 
   /// Returns quiet NaN value
+  MUTLASS_HOST_DEVICE
   static mutlass::half_t quiet_NaN() { return mutlass::half_t::bitcast(0x7fff); }
 
   /// Returns signaling NaN value
+  MUTLASS_HOST_DEVICE
   static mutlass::half_t signaling_NaN() { return mutlass::half_t::bitcast(0x7fff); }
 
   /// Returns smallest positive subnormal value
+  MUTLASS_HOST_DEVICE
   static mutlass::half_t denorm_min() { return mutlass::half_t::bitcast(0x0001); }
 };
 }  // namespace std
