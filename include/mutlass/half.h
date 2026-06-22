@@ -626,6 +626,7 @@ struct numeric_limits<mutlass::half_t> {
 }  // namespace std
 #endif
 
+namespace mutlass {
 namespace platform {
 
 /// std::numeric_limits
@@ -691,6 +692,7 @@ struct numeric_limits<mutlass::half_t> {
   static mutlass::half_t denorm_min() { return mutlass::half_t::bitcast(0x0001); }
 };
 }  // namespace platform
+}  // namespace mutlass
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 //

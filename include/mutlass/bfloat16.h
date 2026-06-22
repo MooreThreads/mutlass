@@ -384,6 +384,74 @@ struct numeric_limits<mutlass::bfloat16_t> {
 
 } // namespace std
 
+namespace mutlass {
+namespace platform {
+
+/// std::numeric_limits
+template <class T>
+struct numeric_limits;
+
+/// Numeric limits
+template <>
+struct numeric_limits<mutlass::bfloat16_t> {
+  static bool const is_specialized = true;
+  static bool const is_signed = true;
+  static bool const is_integer = false;
+  static bool const is_exact = false;
+  static bool const has_infinity = true;
+  static bool const has_quiet_NaN = true;
+  static bool const has_signaling_NaN = false;
+#if !defined(__MUSACC_RTC__)
+  static std::float_denorm_style const has_denorm = std::denorm_present;
+#endif
+  static bool const has_denorm_loss = true;
+#if !defined(__MUSACC_RTC__)
+  static std::float_round_style const round_style = std::round_to_nearest;
+#endif
+  static bool const is_iec559 = true;
+  static bool const is_bounded = true;
+  static bool const is_modulo = false;
+  static int const digits = 10;
+
+  /// Least positive value
+  MUTLASS_HOST_DEVICE
+  static mutlass::bfloat16_t min() { return mutlass::bfloat16_t::bitcast(0x0001); }
+
+  /// Minimum finite value
+  MUTLASS_HOST_DEVICE
+  static mutlass::bfloat16_t lowest() { return mutlass::bfloat16_t::bitcast(0xfbff); }
+
+  /// Maximum finite value
+  MUTLASS_HOST_DEVICE
+  static mutlass::bfloat16_t max() { return mutlass::bfloat16_t::bitcast(0x7bff); }
+
+  /// Returns smallest finite value
+  MUTLASS_HOST_DEVICE
+  static mutlass::bfloat16_t epsilon() { return mutlass::bfloat16_t::bitcast(0x1800); }
+
+  /// Returns maximum rounding error
+  MUTLASS_HOST_DEVICE
+  static mutlass::bfloat16_t round_error() { return mutlass::bfloat16_t(0.5f); }
+
+  /// Returns positive infinity value
+  MUTLASS_HOST_DEVICE
+  static mutlass::bfloat16_t infinity() { return mutlass::bfloat16_t::bitcast(0x7c00); }
+
+  /// Returns quiet NaN value
+  MUTLASS_HOST_DEVICE
+  static mutlass::bfloat16_t quiet_NaN() { return mutlass::bfloat16_t::bitcast(0x7fff); }
+
+  /// Returns signaling NaN value
+  MUTLASS_HOST_DEVICE
+  static mutlass::bfloat16_t signaling_NaN() { return mutlass::bfloat16_t::bitcast(0x7fff); }
+
+  /// Returns smallest positive subnormal value
+  MUTLASS_HOST_DEVICE
+  static mutlass::bfloat16_t denorm_min() { return mutlass::bfloat16_t::bitcast(0x0001); }
+};
+}  // namespace platform
+}  // namespace mutlass
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 //
 // Arithmetic operators

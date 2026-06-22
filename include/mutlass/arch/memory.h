@@ -37,6 +37,8 @@
 
 #include "mutlass/mutlass.h"
 #include "mutlass/arch/cache_operation.h"
+#include "mutlass/array.h"
+#include "mutlass/layout/matrix.h"
 
 namespace mutlass {
 namespace arch {
@@ -315,7 +317,7 @@ template <>
 MUTLASS_DEVICE
 void shared_store<2>(uint32_t ptr, void const *src) {
   auto smem_ptr = reinterpret_cast<
-                    uint16_t __attribute__((address_space(static_cast<int>(AddressSpace::Shared)))*>(ptr);
+                    uint16_t __attribute__((address_space(static_cast<int>(AddressSpace::Shared))))*>(ptr);
   *smem_ptr = *reinterpret_cast<uint16_t const*>(src);
 }
 
