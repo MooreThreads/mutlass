@@ -228,7 +228,7 @@ struct DescriptorIterator
   MUTE_HOST_DEVICE constexpr
   DescriptorIterator operator+(Index const& offset) const
   {
-    return { SqmmaDescriptor{desc_ + uint64_t(offset)} };
+    return { SqmmaDescriptor{static_cast<uint32_t>(desc_ + uint64_t(offset))} };
   }
 
   MUTE_HOST_DEVICE constexpr

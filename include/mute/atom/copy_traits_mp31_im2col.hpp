@@ -264,14 +264,15 @@ make_tme_im2col_copy_desc(Tensor<EngineA, LayoutA> const& tensor,
   MUtensorDescriptorInterleave tme_interleave = MU_TENSOR_DESCRIPTOR_INTERLEAVE_NONE;
   uint64_t                     tme_oobFill    = 0;
 
-  MUresult result = muTensorDescriptorEncode(&tme_desc,
-                                             tme_format,
-                                             num_modes,
-                                             gmem_address,
-                                             gmem_prob_shape.data(),
-                                             gmem_prob_stride.data() + 1,
-                                             tme_interleave,
-                                             tme_oobFill);
+  MUresult result = MUTLASS_MUSA_DRIVER_WRAPPER_CALL(muTensorDescriptorEncode)(
+      &tme_desc,
+      tme_format,
+      num_modes,
+      gmem_address,
+      gmem_prob_shape.data(),
+      gmem_prob_stride.data() + 1,
+      tme_interleave,
+      tme_oobFill);
 
   if (result != MUSA_SUCCESS) {
     std::cerr << "TME Desc Addr:    " << &tme_desc
@@ -309,9 +310,12 @@ make_tme_im2col_copy_desc(Tensor<EngineA, LayoutA> const& tensor,
     im2col_dilation[i] = static_cast<uint32_t>(get<i>(dilation_whd));
   });
 
-  result = muTensorIm2colConvParamEncode(&tme_im2col_param, num_spatial_modes,
-                                         im2col_lower_padding.data(), im2col_stride.data(),
-                                         im2col_dilation.data());
+  result = MUTLASS_MUSA_DRIVER_WRAPPER_CALL(muTensorIm2colConvParamEncode)(
+      &tme_im2col_param,
+      num_spatial_modes,
+      im2col_lower_padding.data(),
+      im2col_stride.data(),
+      im2col_dilation.data());
 
 
   if (result != MUSA_SUCCESS) {

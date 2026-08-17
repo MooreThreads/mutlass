@@ -33,6 +33,7 @@
 
 #if !defined(__MUSACC_RTC__)
 #include <musa.h>
+#include <mutlass/musa_host_adapter.hpp>
 #endif
 
 #include <mute/atom/copy_traits_mp31_tme_swizzle.hpp>
@@ -640,7 +641,7 @@ make_tme_copy_desc(Tensor<GEngine,GLayout> const& gtensor,         // The origin
   MUtensorDescriptorInterleave tme_interleave = MU_TENSOR_DESCRIPTOR_INTERLEAVE_NONE;
   uint64_t                     tme_oobFill    = 0;
 
-  MUresult result = muTensorDescriptorEncode(
+  MUresult result = MUTLASS_MUSA_DRIVER_WRAPPER_CALL(muTensorDescriptorEncode)(
       &tme_desc,
       tme_format,
       tme_dim,

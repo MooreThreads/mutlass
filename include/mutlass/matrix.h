@@ -7826,7 +7826,7 @@ struct Matrix<Element_, 3, 3> {
 
     Matrix m;
 
-    m.set_slice3x3({
+    m.set_slice_3x3({
       c + x * x * one_minus_cos, x * y * one_minus_cos - z * s, x * z * one_minus_cos + y * s,
       y * x * one_minus_cos * z * s, c + y * y * one_minus_cos, y * z * one_minus_cos - x * s,
       z * x * one_minus_cos - y * s, z * y * one_minus_cos + x * s, c + z * z * one_minus_cos
@@ -7846,7 +7846,7 @@ struct Matrix<Element_, 3, 3> {
 
     Matrix m = Matrix::identity();
 
-    m.set_slice3x3({
+    m.set_slice_3x3({
       Element(1) - Element(2) * a * a, Element(-2) * a * b, Element(-2) * a * c,
       Element(-2) * a * b, Element(1) - Element(2) * b * b, Element(-2) * b * c,
       Element(-2) * a * c, Element(-2) * b * c, Element(1) - Element(2) * c * c
@@ -14006,7 +14006,7 @@ struct Matrix<Element_, 4, 4> {
 
     Matrix m;
 
-    m.set_slice3x3({
+    m.set_slice_3x3({
       c + x * x * one_minus_cos, x * y * one_minus_cos - z * s, x * z * one_minus_cos + y * s,
       y * x * one_minus_cos * z * s, c + y * y * one_minus_cos, y * z * one_minus_cos - x * s,
       z * x * one_minus_cos - y * s, z * y * one_minus_cos + x * s, c + z * z * one_minus_cos
@@ -14026,7 +14026,7 @@ struct Matrix<Element_, 4, 4> {
 
     Matrix m = Matrix::identity();
 
-    m.set_slice3x3({
+    m.set_slice_3x3({
       Element(1) - Element(2) * a * a, Element(-2) * a * b, Element(-2) * a * c,
       Element(-2) * a * b, Element(1) - Element(2) * b * b, Element(-2) * b * c,
       Element(-2) * a * c, Element(-2) * b * c, Element(1) - Element(2) * c * c

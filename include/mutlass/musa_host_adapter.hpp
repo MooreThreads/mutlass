@@ -42,6 +42,7 @@
 
 #include "mutlass/platform/platform.h"
 #if ! defined(__MUSACC_RTC__)
+#include <musa.h>
 #include <cstdio>
 #endif
 
@@ -51,12 +52,114 @@
 // Macro-level guard for MUSA Host Adapter
 //
 #if !defined(MUTLASS_ENABLE_MUSA_HOST_ADAPTER)
-#define MUTLASS_ENABLE_MUSA_HOST_ADAPTER false
+#  define MUTLASS_ENABLE_MUSA_HOST_ADAPTER false
 #endif
+
+//
+// Feature guards
+//
+#if !defined(MUSA_HOST_ADAPTER_LAUNCH_ATTRIBUTES_ENABLED)
+#  if !defined(__MUSACC_RTC__)
+#    define MUSA_HOST_ADAPTER_LAUNCH_ATTRIBUTES_ENABLED 1
+#  else
+#    define MUSA_HOST_ADAPTER_LAUNCH_ATTRIBUTES_ENABLED 0
+#  endif
+#endif
+
+#if !defined(MUSA_HOST_ADAPTER_TENSORMAP_ENABLED)
+#  if !defined(__MUSACC_RTC__)
+#    define MUSA_HOST_ADAPTER_TENSORMAP_ENABLED 1
+#  else
+#    define MUSA_HOST_ADAPTER_TENSORMAP_ENABLED 0
+#  endif
+#endif
+
+#if !defined(MUTLASS_MUSA_DRIVER_ENTRY_POINT_ENABLED)
+#  if !defined(__MUSACC_RTC__) && defined(MUSA_VERSION) && (MUSA_VERSION >= 40306)
+#    define MUTLASS_MUSA_DRIVER_ENTRY_POINT_ENABLED 1
+#  else
+#    define MUTLASS_MUSA_DRIVER_ENTRY_POINT_ENABLED 0
+#  endif
+#endif
+
+#if !defined(__MUSACC_RTC__) && MUSA_HOST_ADAPTER_TENSORMAP_ENABLED
+
+#  if !defined(MUTLASS_MUSA_DRIVER_WRAPPER_CALL)
+#    define MUTLASS_MUSA_DRIVER_WRAPPER_CALL(func) mutlass::detail::func##_driver_wrapper
+#  endif
+
+#  if defined(MUTLASS_ENABLE_DIRECT_MUSA_DRIVER_CALL)
+#    define MUTLASS_MUSA_DRIVER_WRAPPER_DECL(func)                                       \
+      namespace detail {                                                                 \
+      template <class... Args>                                                           \
+      inline MUresult func##_driver_wrapper(Args... args) {                              \
+        return func(args...);                                                            \
+      }                                                                                  \
+      }
+#  elif MUTLASS_MUSA_DRIVER_ENTRY_POINT_ENABLED
+#    define MUTLASS_MUSA_DRIVER_WRAPPER_DECL(func)                                       \
+      namespace detail {                                                                 \
+      template <class... Args>                                                           \
+      inline MUresult func##_driver_wrapper(Args... args) {                              \
+        void* function_ptr = nullptr;                                                    \
+        musaDriverEntryPointQueryResult driver_status = musaDriverEntryPointSuccess;     \
+        musaError_t result = musaGetDriverEntryPoint(                                    \
+            #func,                                                                       \
+            &function_ptr,                                                               \
+            musaEnableDefault,                                                           \
+            &driver_status);                                                             \
+        if (result != musaSuccess || driver_status != musaDriverEntryPointSuccess ||      \
+            function_ptr == nullptr) {                                                   \
+          return MUSA_ERROR_UNKNOWN;                                                      \
+        }                                                                                \
+        return reinterpret_cast<decltype(&func)>(function_ptr)(args...);                 \
+      }                                                                                  \
+      }
+#  else
+#    define MUTLASS_MUSA_DRIVER_WRAPPER_DECL(func)                                       \
+      namespace detail {                                                                 \
+      template <class... Args>                                                           \
+      inline MUresult func##_driver_wrapper(Args... args) {                              \
+        return func(args...);                                                            \
+      }                                                                                  \
+      }
+#  endif
+
+#endif // !defined(__MUSACC_RTC__) && MUSA_HOST_ADAPTER_TENSORMAP_ENABLED
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 namespace mutlass {
+
+/////////////////////////////////////////////////////////////////////////////////////////////////
+
+#if !defined(__MUSACC_RTC__) && MUSA_HOST_ADAPTER_TENSORMAP_ENABLED
+MUTLASS_MUSA_DRIVER_WRAPPER_DECL(muTensorDescriptorEncode)
+MUTLASS_MUSA_DRIVER_WRAPPER_DECL(muTensorDescriptorReplaceAddress)
+MUTLASS_MUSA_DRIVER_WRAPPER_DECL(muTensorIm2colConvParamEncode)
+#endif
+
+/////////////////////////////////////////////////////////////////////////////////////////////////
+
+struct MusaHostLaunchAttributes {
+  /// Maximum number of launch attributes.
+  static constexpr int32_t kMaximumLaunchAttributeCount = 5;
+
+#if MUSA_HOST_ADAPTER_LAUNCH_ATTRIBUTES_ENABLED
+  MUlaunchAttribute attrs[kMaximumLaunchAttributeCount]{};
+#endif
+  int32_t attr_count = 0;
+
+#if MUSA_HOST_ADAPTER_LAUNCH_ATTRIBUTES_ENABLED
+  MUlaunchAttribute* data() { return attrs; }
+  MUlaunchAttribute const* data() const { return attrs; }
+#else
+  void* data() { return nullptr; }
+  void const* data() const { return nullptr; }
+#endif
+
+  size_t size() const { return static_cast<size_t>(attr_count); }
+};
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -75,6 +178,7 @@ struct MusaHostAdapter {
   //
 
   /// Handles
+  MusaHostLaunchAttributes launch_attrs{};
   void        *kernel_handles[kMaximumKernelCount];
   int32_t      kernel_count = 0;
 
@@ -90,6 +194,7 @@ struct MusaHostAdapter {
 
   /// Copy Ctor
   inline MusaHostAdapter(const MusaHostAdapter & rhs):
+    launch_attrs(rhs.launch_attrs),
     kernel_count(rhs.kernel_count)
   {
     MUTLASS_ASSERT(rhs.kernel_count >= 0 && rhs.kernel_count < kMaximumKernelCount);
@@ -102,6 +207,7 @@ struct MusaHostAdapter {
   inline MusaHostAdapter& operator=(const MusaHostAdapter & rhs) {
 
     MUTLASS_ASSERT(rhs.kernel_count >= 0 && rhs.kernel_count < kMaximumKernelCount);
+    launch_attrs = rhs.launch_attrs;
     for (int32_t i = 0; i < rhs.kernel_count && i < kMaximumKernelCount; ++i) {
       kernel_handles[i] = rhs.kernel_handles[i];
     }
@@ -111,6 +217,7 @@ struct MusaHostAdapter {
 
   /// Move ctor
   inline MusaHostAdapter(MusaHostAdapter && rhs):
+    launch_attrs(rhs.launch_attrs),
     kernel_count(rhs.kernel_count)
   {
     MUTLASS_ASSERT(rhs.kernel_count >= 0 && rhs.kernel_count < kMaximumKernelCount);
@@ -123,6 +230,7 @@ struct MusaHostAdapter {
   inline MusaHostAdapter& operator=(MusaHostAdapter && rhs) {
 
     MUTLASS_ASSERT(rhs.kernel_count >= 0 && rhs.kernel_count < kMaximumKernelCount);
+    launch_attrs = rhs.launch_attrs;
     for (int32_t i = 0; i < rhs.kernel_count && i < kMaximumKernelCount; ++i) {
       kernel_handles[i] = rhs.kernel_handles[i];
     }
@@ -135,8 +243,10 @@ struct MusaHostAdapter {
   /// Ctor
   inline MusaHostAdapter(
     void **kernel_handles_, 
-    int32_t kernel_count_
+    int32_t kernel_count_,
+    MusaHostLaunchAttributes const& launch_attrs_ = {}
   ): 
+    launch_attrs(launch_attrs_),
     kernel_count(kernel_count_)
   {
     MUTLASS_ASSERT(kernel_count >= 0);
@@ -177,6 +287,32 @@ struct MusaHostAdapter {
     musaStream_t musa_stream,
     void** kernel_params,
     int32_t kernel_index) const = 0;
+
+#if !defined(__MUSACC_RTC__) && MUSA_HOST_ADAPTER_TENSORMAP_ENABLED
+  /// Encodes a TME tensor descriptor.
+  virtual MUresult tensorDescriptorEncode(
+    MUtensorDescriptor* tensorDesc,
+    MUtensorDescriptorDataType tensorDataType,
+    muuint32_t tensorRank,
+    void* globalAddress,
+    const muuint64_t* globalDim,
+    const muuint64_t* globalStrides,
+    MUtensorDescriptorInterleave interleave,
+    muuint64_t oobConstantFill) const = 0;
+
+  /// Replaces the global address of a TME tensor descriptor.
+  virtual MUresult tensorDescriptorReplaceAddress(
+    MUtensorDescriptor* tensorDesc,
+    void* globalAddress) const = 0;
+
+  /// Encodes convolution parameters used by TME Im2Col copies.
+  virtual MUresult tensorIm2colConvParamEncode(
+    MUconvParamer* convParam,
+    muuint32_t convRank,
+    const muuint32_t* padding,
+    const muuint32_t* stride,
+    const muuint32_t* dilation) const = 0;
+#endif
 
 protected:
 

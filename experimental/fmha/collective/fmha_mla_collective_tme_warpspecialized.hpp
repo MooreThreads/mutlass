@@ -641,7 +641,7 @@ struct FmhaMlaMainloopTmeWarpSpecializedV2 {
       }
 
       // Softmax
-      softmax.template step(acc_qk, tiled_mma_qk, softmax_state, tPcP, problem_size);
+      softmax.step(acc_qk, tiled_mma_qk, softmax_state, tPcP, problem_size);
 
       // Sts
       convert_and_sts(acc_qk);
