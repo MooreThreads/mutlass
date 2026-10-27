@@ -80,13 +80,13 @@ struct swizzle_ptr : iter_adaptor<Iterator,swizzle_ptr<SwizzleFn,Iterator>>
   MUTE_HOST_DEVICE constexpr static
   Iter apply_swizzle(Iter ptr) {
     if constexpr (mute::is_gmem_v<Iter>) {
-      return {apply_swizzle<typename iterator_traits<decltype(ptr.get())>::value_type,
+      return {apply_swizzle<typename iterator_traits<decltype(ptr.get())>::element_type,
                             AddressSpace::Global>(ptr.get())};
     } else if constexpr (mute::is_smem_v<Iter>) {
-      return {apply_swizzle<typename iterator_traits<decltype(ptr.get())>::value_type,
+      return {apply_swizzle<typename iterator_traits<decltype(ptr.get())>::element_type,
                             AddressSpace::Shared>(ptr.get())};
     } else {
-      return {apply_swizzle<typename iterator_traits<decltype(ptr.get())>::value_type,
+      return {apply_swizzle<typename iterator_traits<decltype(ptr.get())>::element_type,
                             AddressSpace::Generic>(ptr.get())};
     }
   }
